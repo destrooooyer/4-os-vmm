@@ -21,6 +21,18 @@ void do_init()
 {
 	int i, j;
 	srandom(time(NULL));
+/********************************************************************************/
+	//初始化辅存,不然程序运行不了
+	unsigned char c;
+	for(i=0;i<64*4;i++){
+		c = random() % 0xFFu;
+		fprintf(ptr_auxMem, "%c", c);
+	}
+/********************************************************************************/	
+
+
+
+	//初始化页表
 	for (i = 0; i < PAGE_SUM; i++)
 	{
 		pageTable[i].pageNum = i;
@@ -69,7 +81,11 @@ void do_init()
 				break;
 		}
 		/* 设置该页对应的辅存地址 */
-		pageTable[i].auxAddr = i * PAGE_SIZE * 2;
+/***********************************************************************************/
+		//64个页表项对应辅存的64页,乘2是什么意思？？？
+		//pageTable[i].auxAddr = i * PAGE_SIZE * 2;
+		pageTable[i].auxAddr = i * PAGE_SIZE;
+/***********************************************************************************/	
 	}
 	for (j = 0; j < BLOCK_SUM; j++)
 	{
@@ -110,6 +126,7 @@ void do_response()
 	ptr_pageTabIt = &pageTable[pageNum];
 	
 	/* 根据特征位决定是否产生缺页中断 */
+	//当前页表为空
 	if (!ptr_pageTabIt->filled)
 	{
 		do_page_fault(ptr_pageTabIt);
@@ -171,6 +188,7 @@ void do_page_fault(Ptr_PageTableItem ptr_pageTabIt)
 {
 	unsigned int i;
 	printf("产生缺页中断，开始进行调页...\n");
+	//先找没有写进页表中的物理块,没有的话进行调度
 	for (i = 0; i < BLOCK_SUM; i++)
 	{
 		if (!blockStatus[i])
@@ -197,15 +215,23 @@ void do_LFU(Ptr_PageTableItem ptr_pageTabIt)
 {
 	unsigned int i, min, page;
 	printf("没有空闲物理块，开始进行LFU页面替换...\n");
+/*******************************************************************************/
+	//算法似乎有问题，应该从装入了物理块的页中选择最少使用次数的
+/*******************************************************************************/	
+
 	for (i = 0, min = 0xFFFFFFFF, page = 0; i < PAGE_SUM; i++)
 	{
-		if (pageTable[i].count < min)
+		//if (pageTable[i].count < min)
+/*******************************************************************************/
+		if (pageTable[i].filled && pageTable[i].count < min)
+/*******************************************************************************/
 		{
 			min = pageTable[i].count;
 			page = i;
 		}
 	}
 	printf("选择第%u页进行替换\n", page);
+	//该页面对应的物理块修改了
 	if (pageTable[page].edited)
 	{
 		/* 页面内容有修改，需要写回至辅存 */
@@ -231,6 +257,8 @@ void do_LFU(Ptr_PageTableItem ptr_pageTabIt)
 void do_page_in(Ptr_PageTableItem ptr_pageTabIt, unsigned int blockNum)
 {
 	unsigned int readNum;
+
+	//打开辅存文件ptr_auxMem,从文件开头(SEEK_SET)处偏移ptr_pageTabIt->auxAddr(该页表在辅存中的位置)开始读取数据
 	if (fseek(ptr_auxMem, ptr_pageTabIt->auxAddr, SEEK_SET) < 0)
 	{
 #ifdef DEBUG
@@ -239,6 +267,11 @@ void do_page_in(Ptr_PageTableItem ptr_pageTabIt, unsigned int blockNum)
 		do_error(ERROR_FILE_SEEK_FAILED);
 		exit(1);
 	}
+
+	//从之前打开的ptr_auxMem文件流中读取数据,写入到实存中指定块的位置(actMem + blockNum * PAGE_SIZE)
+	//读写字节的大小(sizeof(BYTE))           读写4个字节(PAGE_SIZE)
+
+	//初始化时并没有设置辅存中的数据，所以辅存为空，读取会失败
 	if ((readNum = fread(actMem + blockNum * PAGE_SIZE, 
 		sizeof(BYTE), PAGE_SIZE, ptr_auxMem)) < PAGE_SIZE)
 	{
@@ -251,12 +284,14 @@ void do_page_in(Ptr_PageTableItem ptr_pageTabIt, unsigned int blockNum)
 		exit(1);
 	}
 	printf("调页成功：辅存地址%u-->>物理块%u\n", ptr_pageTabIt->auxAddr, blockNum);
+
 }
 
 /* 将被替换页面的内容写回辅存 */
 void do_page_out(Ptr_PageTableItem ptr_pageTabIt)
 {
 	unsigned int writeNum;
+	//同上，从辅存中相应页面的地址开始读写
 	if (fseek(ptr_auxMem, ptr_pageTabIt->auxAddr, SEEK_SET) < 0)
 	{
 #ifdef DEBUG
@@ -265,6 +300,8 @@ void do_page_out(Ptr_PageTableItem ptr_pageTabIt)
 		do_error(ERROR_FILE_SEEK_FAILED);
 		exit(1);
 	}
+
+	//fwrite()与fread()的区别是,fwrite()执行完之后必须关闭流fclose(),而fread()不关闭会将流移动到上次读写结束的地址
 	if ((writeNum = fwrite(actMem + ptr_pageTabIt->blockNum * PAGE_SIZE, 
 		sizeof(BYTE), PAGE_SIZE, ptr_auxMem)) < PAGE_SIZE)
 	{
@@ -277,6 +314,11 @@ void do_page_out(Ptr_PageTableItem ptr_pageTabIt)
 		exit(1);
 	}
 	printf("写回成功：物理块%u-->>辅存地址%03X\n", ptr_pageTabIt->auxAddr, ptr_pageTabIt->blockNum);
+
+/********************************************************************************************************/
+	//fclose(ptr_auxMem);   main函数里面关闭了
+/********************************************************************************************************/	
+
 }
 
 /* 错误处理 */
@@ -345,6 +387,7 @@ void do_error(ERROR_CODE code)
 void do_request()
 {
 	/* 随机产生请求地址 */
+	//产生的虚地址是0~64*4-1  还有再进一步判断属于哪一页
 	ptr_memAccReq->virAddr = random() % VIRTUAL_MEMORY_SIZE;
 	/* 随机产生请求类型 */
 	switch (random() % 3)
@@ -359,6 +402,7 @@ void do_request()
 		{
 			ptr_memAccReq->reqType = REQUEST_WRITE;
 			/* 随机产生待写入的值 */
+			//这个值应该是一个字节,8位    u代表整型无符号数
 			ptr_memAccReq->value = random() % 0xFFu;
 			printf("产生请求：\n地址：%u\t类型：写入\t值：%02X\n", ptr_memAccReq->virAddr, ptr_memAccReq->value);
 			break;
@@ -411,14 +455,18 @@ int main(int argc, char* argv[])
 {
 	char c;
 	int i;
-	if (!(ptr_auxMem = fopen(AUXILIARY_MEMORY, "r+")))
+	//if (!(ptr_auxMem = fopen(AUXILIARY_MEMORY, "r+")))
+	//创建辅存文件
+	if (!(ptr_auxMem = fopen(AUXILIARY_MEMORY, "w+")))
 	{
 		do_error(ERROR_FILE_OPEN_FAILED);
 		exit(1);
 	}
-	
+	//初始化页表，辅存和实存
 	do_init();
+	//打印页表信息
 	do_print_info();
+	//为访存请求申请空间
 	ptr_memAccReq = (Ptr_MemoryAccessRequest) malloc(sizeof(MemoryAccessRequest));
 	/* 在循环中模拟访存请求与处理过程 */
 	while (TRUE)
