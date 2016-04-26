@@ -86,6 +86,12 @@ void do_init()
 		//pageTable[i].auxAddr = i * PAGE_SIZE * 2;
 		pageTable[i].auxAddr = i * PAGE_SIZE;
 /***********************************************************************************/	
+/***********************************************************************************/
+		//随机产生进程号0~9
+		pageTable[i].proccessNum = random() % 10;
+/***********************************************************************************/
+
+
 	}
 	for (j = 0; j < BLOCK_SUM; j++)
 	{
@@ -117,6 +123,10 @@ void do_response()
 		return;
 	}
 	
+/************************************************************************************/
+	printf("请求进程号: %u\n", ptr_memAccReq->proccessNum);
+/************************************************************************************/
+
 	/* 计算页号和页内偏移值 */
 	pageNum = ptr_memAccReq->virAddr / PAGE_SIZE;
 	offAddr = ptr_memAccReq->virAddr % PAGE_SIZE;
@@ -135,6 +145,14 @@ void do_response()
 	actAddr = ptr_pageTabIt->blockNum * PAGE_SIZE + offAddr;
 	printf("实地址为：%u\n", actAddr);
 	
+/***********************************************************************************/
+	if(ptr_memAccReq->proccessNum != ptr_pageTabIt->proccessNum){
+		ptr_pageTabIt->count++;
+		printf("权限不够,无法操作其他进程数据\n");
+		return ;
+	}
+/***********************************************************************************/
+
 	/* 检查页面访问权限并处理访存请求 */
 	switch (ptr_memAccReq->reqType)
 	{
@@ -423,7 +441,12 @@ void new_do_request(){
 	unsigned long address;
 	int type;
 	int value;
-	scanf("%d %d %d",&address,&type,&value);
+	unsigned int proccessnum;
+/*************************************************************************/
+	//进程
+	scanf("%d %d %d %d",&address,&type,&proccessnum,&value);
+	ptr_memAccReq->proccessNum = proccessnum;
+/*************************************************************************/
 	ptr_memAccReq->virAddr = address % VIRTUAL_MEMORY_SIZE;
 	switch (type)
 	{
@@ -461,12 +484,12 @@ void do_print_info()
 {
 	unsigned int i, j, k;
 	char str[4];
-	printf("页号\t块号\t装入\t修改\t保护\t计数\t辅存\n");
+	printf("页号\t块号\t装入\t修改\t保护\t计数\t辅存\t进程号\n");
 	for (i = 0; i < PAGE_SUM; i++)
 	{
-		printf("%u\t%u\t%u\t%u\t%s\t%u\t%u\n", i, pageTable[i].blockNum, pageTable[i].filled, 
+		printf("%u\t%u\t%u\t%u\t%s\t%u\t%u\t%u\n", i, pageTable[i].blockNum, pageTable[i].filled, 
 			pageTable[i].edited, get_proType_str(str, pageTable[i].proType), 
-			pageTable[i].count, pageTable[i].auxAddr);
+			pageTable[i].count, pageTable[i].auxAddr,pageTable[i].proccessNum);
 	}
 }
 /*************************************************************************/

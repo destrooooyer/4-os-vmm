@@ -50,6 +50,9 @@ typedef struct
 	BOOL edited; //页面修改标识
 	unsigned long auxAddr; //外存地址
 	unsigned long count; //页面使用计数器
+/**********************************************************************/
+	unsigned int proccessNum;
+/**********************************************************************/
 } PageTableItem, *Ptr_PageTableItem;
 
 /* 访存请求类型 */
@@ -65,6 +68,9 @@ typedef struct
 	MemoryAccessRequestType reqType; //访存请求类型
 	unsigned long virAddr; //虚地址
 	BYTE value; //写请求的值
+/**********************************************************************/
+	unsigned int proccessNum;
+/**********************************************************************/
 } MemoryAccessRequest, *Ptr_MemoryAccessRequest;
 
 
