@@ -418,6 +418,44 @@ void do_request()
 	}	
 }
 
+/*************************************************************************/
+void new_do_request(){
+	unsigned long address;
+	int type;
+	int value;
+	scanf("%d %d %d",&address,&type,&value);
+	ptr_memAccReq->virAddr = address % VIRTUAL_MEMORY_SIZE;
+	switch (type)
+	{
+		case 0: //读请求
+		{
+			ptr_memAccReq->reqType = REQUEST_READ;
+			printf("产生请求：\n地址：%u\t类型：读取\n", ptr_memAccReq->virAddr);
+			break;
+		}
+		case 1: //写请求
+		{
+			ptr_memAccReq->reqType = REQUEST_WRITE;
+			/* 随机产生待写入的值 */
+			//这个值应该是一个字节,8位    u代表整型无符号数
+			ptr_memAccReq->value = value % 0xFFu;
+			printf("产生请求：\n地址：%u\t类型：写入\t值：%02X\n", ptr_memAccReq->virAddr, ptr_memAccReq->value);
+			break;
+		}
+		case 2:
+		{
+			ptr_memAccReq->reqType = REQUEST_EXECUTE;
+			printf("产生请求：\n地址：%u\t类型：执行\n", ptr_memAccReq->virAddr);
+			break;
+		}
+		default:
+			break;
+	}	
+
+}
+/*************************************************************************/
+
+
 /* 打印页表 */
 void do_print_info()
 {
@@ -431,6 +469,40 @@ void do_print_info()
 			pageTable[i].count, pageTable[i].auxAddr);
 	}
 }
+/*************************************************************************/
+//打印辅存
+void do_print_auxiliaryStorage(){
+	BYTE c[4];
+	int i,readnum;
+	if (fseek(ptr_auxMem, 0L, SEEK_SET) < 0){
+		printf("读取虚存失败\n");
+	}
+	printf("in\n");
+	for(i=0;i<64;i++){
+		if((readnum = fread(c, sizeof(BYTE), PAGE_SIZE, ptr_auxMem))==PAGE_SIZE){
+			printf("%02X %02X %02X %02X\n", c[0],c[1],c[2],c[3]);
+		}
+		else{
+			printf("读取虚存失败\n");
+		}
+	}
+}
+//打印实存
+void do_print_memory(){
+	int i,j = 0;
+	printf("实存内容如下:\n");
+	for(i=0;i<128;i++){
+		j++;
+		if(j == 4){
+			printf("%02X\n", actMem[i]);
+			j = 0;
+		}
+		else{
+			printf("%02X ", actMem[i]);
+		}
+	}
+}
+/*************************************************************************/
 
 /* 获取页面保护类型字符串 */
 char *get_proType_str(char *str, BYTE type)
@@ -471,13 +543,29 @@ int main(int argc, char* argv[])
 	/* 在循环中模拟访存请求与处理过程 */
 	while (TRUE)
 	{
-		do_request();
+		//do_request();
+/***************************************************************************************/
+		new_do_request();
+/***************************************************************************************/
 		do_response();
+		c = getchar();
 		printf("按Y打印页表，按其他键不打印...\n");
 		if ((c = getchar()) == 'y' || c == 'Y')
 			do_print_info();
 		while (c != '\n')
 			c = getchar();
+/***************************************************************************************/
+		printf("按A打印辅存，按其他键不打印...\n");
+		if ((c = getchar()) == 'a' || c == 'A')
+			do_print_auxiliaryStorage();
+		while (c != '\n')
+			c = getchar();
+		printf("按M打印实存，按其他键不打印...\n");
+		if ((c = getchar()) == 'm' || c == 'M')
+			do_print_memory();
+		while (c != '\n')
+			c = getchar();
+/***************************************************************************************/
 		printf("按X退出程序，按其他键继续...\n");
 		if ((c = getchar()) == 'x' || c == 'X')
 			break;
