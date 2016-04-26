@@ -43,7 +43,7 @@ typedef enum {
 /* 页表项 */
 typedef struct
 {
-	unsigned int pageNum;
+	unsigned int pageNum;  //虚拟页号
 	unsigned int blockNum; //物理块号
 	BOOL filled; //页面装入特征位
 	BYTE proType; //页面保护类型
@@ -56,7 +56,7 @@ typedef struct
 typedef enum { 
 	REQUEST_READ, 
 	REQUEST_WRITE, 
-	REQUEST_EXECUTE 
+	REQUEST_EXECUTE     //执行请求???
 } MemoryAccessRequestType;
 
 /* 访存请求 */
