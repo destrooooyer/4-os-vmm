@@ -454,8 +454,8 @@ void new_do_request() {
 	//进程
 	scanf("%d%d%d%d", &address, &type, &proccessnum, &value);
 
-	kill(pid, SIGUSR1);
-	printf("123\n");
+		kill(pid, SIGUSR1);
+printf("123\n");
 
 	//上面四个打到文件
 
@@ -463,19 +463,19 @@ void new_do_request() {
 
 	sprintf(temp_str, "%d\n%d\n%d\n%d", address, type, proccessnum, value);
 	int temp_fifo;
-	printf("1234\n");
+printf("1234\n");
 	if ((temp_fifo = open("/tmp/temp_var4", O_WRONLY)) < 0)
 
 		printf("opening failed");
 
-	printf("1235\n");
+printf("1235\n");
 
 	if (write(temp_fifo, temp_str, 10000) < 0)
 
 		printf("/tmp/temp_info write failed");
 
 
-	printf("1236\n");
+printf("1236\n");
 
 
 	close(temp_fifo);
@@ -571,13 +571,13 @@ void do_print_info_to_file()
 	unsigned int i, j, k;
 	char str[4];
 	sprintf(temp_str, "页号\t块号\t装入\t修改\t保护\t计数\t辅存\t进程号\n");
-	strcat(temp_str_out, temp_str);
+strcat(temp_str_out,temp_str);
 	for (i = 0; i < PAGE_SUM; i++)
 	{
 		sprintf(temp_str, "%u\t%u\t%u\t%u\t%s\t%u\t%u\t%u\n", i, pageTable[i].blockNum, pageTable[i].filled,
 			pageTable[i].edited, get_proType_str(str, pageTable[i].proType),
 			pageTable[i].count, pageTable[i].auxAddr, pageTable[i].proccessNum);
-		strcat(temp_str_out, temp_str);
+strcat(temp_str_out,temp_str);
 	}
 
 	int temp_fifo;
@@ -588,7 +588,7 @@ void do_print_info_to_file()
 
 
 
-	if (write(temp_fifo, temp_str_out, 10000) < 0)
+	if (write(temp_fifo, temp_str, 10000) < 0)
 
 		printf("/tmp/temp_info write failed");
 
@@ -604,18 +604,18 @@ void do_print_memory_to_file()
 
 	int i, j = 0;
 	sprintf(temp_str, "实存内容如下:\n");
-	strcat(temp_str_out, temp_str);
+strcat(temp_str_out,temp_str);
 
 	for (i = 0; i < 128; i++) {
 		j++;
 		if (j == 4) {
 			sprintf(temp_str, "%02X\n", actMem[i]);
-			strcat(temp_str_out, temp_str);
+strcat(temp_str_out,temp_str);
 			j = 0;
 		}
 		else {
 			sprintf(temp_str, "%02X ", actMem[i]);
-			strcat(temp_str_out, temp_str);
+strcat(temp_str_out,temp_str);
 		}
 	}
 
@@ -840,44 +840,44 @@ int main(int argc, char* argv[])
 		/***************************************************************************************/
 		//do_response();
 		while (mark2 == 0);
-		printf("123123123123123\n");
+printf("123123123123123\n");
 		mark2 = 0;
 
-		c = getchar();
+			c = getchar();
 		while (c != '\n')
 			c = getchar();
 
 
-		int flag_y = 0;
-		int flag_m = 0;
-
+		int flag_y=0;
+		int flag_m=0;
+		
 		printf("按Y打印页表，按其他键不打印...\n");
 		if ((c = getchar()) == 'y' || c == 'Y')
 		{
 			//do_print_info();
 			do_print_info_from_file();
-			flag_y = 1;
+			flag_y=1;
 		}
-		if (flag_y == 0)
+if(flag_y==0)
 		{
 			char temp_str[10000] = { 0 };
 
-			int temp_fifo;
-			if ((temp_fifo = open("/tmp/temp_info", O_RDONLY)) < 0)
+	int temp_fifo;
+	if ((temp_fifo = open("/tmp/temp_info", O_RDONLY)) < 0)
 
-				printf("open /tmp/temp_info failed");
+		printf("open /tmp/temp_info failed");
 
 
 
-			int count = 0;
+	int count = 0;
 
-			//读200个，关
+	//读200个，关
 
-			if ((count = read(temp_fifo, temp_str, 10000)) < 0)
+	if ((count = read(temp_fifo, temp_str, 10000)) < 0)
 
-				printf("read /tmp/temp_info failed");
+		printf("read /tmp/temp_info failed");
 
-			close(temp_fifo);
+	close(temp_fifo);
 		}
 
 		while (c != '\n')
@@ -893,29 +893,29 @@ int main(int argc, char* argv[])
 		{
 			//do_print_memory();
 			do_print_memory_from_file();
-			flag_m = 1;
+			flag_m=1;
 		}
-
-		if (flag_m == 0)
+		
+		if(flag_m==0)
 		{
-			char temp_str[10000] = { 0 };
+char temp_str[10000] = { 0 };
 
-			int temp_fifo;
-			if ((temp_fifo = open("/tmp/temp_mem", O_RDONLY)) < 0)
+	int temp_fifo;
+	if ((temp_fifo = open("/tmp/temp_mem", O_RDONLY)) < 0)
 
-				printf("open /tmp/temp_mem failed");
+		printf("open /tmp/temp_mem failed");
 
 
 
-			int count = 0;
+	int count = 0;
 
-			//读200个，关
+	//读200个，关
 
-			if ((count = read(temp_fifo, temp_str, 10000)) < 0)
+	if ((count = read(temp_fifo, temp_str, 10000)) < 0)
 
-				printf("read /tmp/temp_info failed");
+		printf("read /tmp/temp_info failed");
 
-			close(temp_fifo);
+	close(temp_fifo);
 		}
 
 
