@@ -39,6 +39,16 @@ typedef enum {
 } BOOL;
 
 
+/**********************************************************************/
+//一级页表
+/* 页表项 */
+typedef struct
+{
+	unsigned int firstPageNum;  //一级页表虚拟页号
+	unsigned int secondPageNum[8]; //对应的8个二级页表
+} FirstPageTableItem, *Ptr_FirstPageTableItem;
+/**********************************************************************/
+
 
 /* 页表项 */
 typedef struct
