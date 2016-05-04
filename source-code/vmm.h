@@ -29,6 +29,7 @@
 /* 可执行标识位 */
 #define EXECUTABLE 0x04u
 
+#define LRU_period 10 //  
 
 
 /* 定义字节类型 */
@@ -49,7 +50,7 @@ typedef struct
 } FirstPageTableItem, *Ptr_FirstPageTableItem;
 /**********************************************************************/
 
-
+//二级页表
 /* 页表项 */
 typedef struct
 {
@@ -62,6 +63,7 @@ typedef struct
 	unsigned long count; //页面使用计数器
 /**********************************************************************/
 	unsigned int proccessNum;
+	unsigned int LRU_flag; 
 /**********************************************************************/
 } PageTableItem, *Ptr_PageTableItem;
 
@@ -90,12 +92,12 @@ typedef enum {
 	ERROR_WRITE_DENY, //该页不可写
 	ERROR_EXECUTE_DENY, //该页不可执行
 	ERROR_INVALID_REQUEST, //非法请求类型
-	ERROR_OVER_BOUNDARY, //地址越界
-	ERROR_FILE_OPEN_FAILED, //文件打开失败
-	ERROR_FILE_CLOSE_FAILED, //文件关闭失败
-	ERROR_FILE_SEEK_FAILED, //文件指针定位失败
-	ERROR_FILE_READ_FAILED, //文件读取失败
-	ERROR_FILE_WRITE_FAILED //文件写入失败
+	ERROR_OVER_BOUNDARY,      //地址越界
+	ERROR_FILE_OPEN_FAILED,   //文件打开失败
+	ERROR_FILE_CLOSE_FAILED,  //文件关闭失败
+	ERROR_FILE_SEEK_FAILED,   //文件指针定位失败
+	ERROR_FILE_READ_FAILED,   //文件读取失败
+	ERROR_FILE_WRITE_FAILED   //文件写入失败
 } ERROR_CODE;
 
 /* 产生访存请求 */

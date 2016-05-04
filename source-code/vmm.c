@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include "vmm.h"
+#include "time.h"
 
 /* 页表 */
 FirstPageTableItem firstPageTable[8];
@@ -48,6 +49,7 @@ void do_init()
 		pageTable[i].filled = FALSE;
 		pageTable[i].edited = FALSE;
 		pageTable[i].count = 0;
+		pageTable[i].LRU_flag = 0;
 		/* 使用随机数设置该页的保护类型 */
 		switch (random() % 7)
 		{
@@ -170,6 +172,7 @@ void do_response()
 	/***********************************************************************************/
 	if (ptr_memAccReq->proccessNum != ptr_pageTabIt->proccessNum) {
 		ptr_pageTabIt->count++;
+		ptr_pageTabIt->LRU_flag = 1;
 		printf("权限不够,无法操作其他进程数据\n");
 		return;
 	}
@@ -191,6 +194,7 @@ void do_response()
 	case REQUEST_READ: //读请求
 	{
 		ptr_pageTabIt->count++;
+		ptr_pageTabIt->LRU_flag = 1;
 		if (!(ptr_pageTabIt->proType & READABLE)) //页面不可读
 		{
 			do_error(ERROR_READ_DENY);
@@ -203,6 +207,7 @@ void do_response()
 	case REQUEST_WRITE: //写请求
 	{
 		ptr_pageTabIt->count++;
+		ptr_pageTabIt->LRU_flag = 1;
 		if (!(ptr_pageTabIt->proType & WRITABLE)) //页面不可写
 		{
 			do_error(ERROR_WRITE_DENY);
@@ -217,6 +222,7 @@ void do_response()
 	case REQUEST_EXECUTE: //执行请求
 	{
 		ptr_pageTabIt->count++;
+		ptr_pageTabIt->LRU_flag = 1;
 		if (!(ptr_pageTabIt->proType & EXECUTABLE)) //页面不可执行
 		{
 			do_error(ERROR_EXECUTE_DENY);
@@ -251,13 +257,15 @@ void do_page_fault(Ptr_PageTableItem ptr_pageTabIt)
 			ptr_pageTabIt->filled = TRUE;
 			ptr_pageTabIt->edited = FALSE;
 			ptr_pageTabIt->count = 0;
+			ptr_pageTabIt->LRU_flag = 1;
 
 			blockStatus[i] = TRUE;
 			return;
 		}
 	}
 	/* 没有空闲物理块，进行页面替换 */
-	do_LFU(ptr_pageTabIt);
+	//do_LFU(ptr_pageTabIt);
+	do_LRU(ptr_pageTabIt);
 }
 
 /* 根据LFU算法进行页面替换 */
@@ -302,6 +310,60 @@ void do_LFU(Ptr_PageTableItem ptr_pageTabIt)
 	ptr_pageTabIt->count = 0;
 	printf("页面替换成功\n");
 }
+
+
+
+void do_LRU (Ptr_PageTableItem ptr_pageTabIt){
+	unsigned int i,page;
+	printf("没有空闲物理块，开始进行LRU页面替换...\n");
+	for (i = 0,page = 0; i < PAGE_SUM ; i++){
+		if (pageTable[i].filled && pageTable[i].LRU_flag ==0){
+			page = i;
+			break;//如果有多个未被使用，选择其中最靠前的一页
+		}
+	}
+
+	if (i==PAGE_SUM){ //没有找到未被使用的,优先选择最靠前的	
+		for (i = 0; i < PAGE_SUM; i++){
+			if (pageTable[i].filled){
+				page = i;
+				break;
+			}
+		}
+	}
+
+	printf("选择第%u页进行替换\n", page);
+	//该页面对应的物理块修改了
+	if (pageTable[page].edited)
+	{
+		/* 页面内容有修改，需要写回至辅存 */
+		printf("该页内容有修改，写回至辅存\n");
+		do_page_out(&pageTable[page]);
+	}
+	pageTable[page].filled = FALSE;
+	pageTable[page].LRU_flag = 0;
+
+
+	/* 读辅存内容，写入到实存 */
+	do_page_in(ptr_pageTabIt, pageTable[page].blockNum);
+	
+	/* 更新页表内容 */
+	ptr_pageTabIt->blockNum = pageTable[page].blockNum;
+	ptr_pageTabIt->filled = TRUE;
+	ptr_pageTabIt->edited = FALSE;
+	ptr_pageTabIt->LRU_flag = 0;
+	printf("页面替换成功\n");
+
+}
+
+
+void do_LRU_aging(){
+	//
+	
+
+}
+
+
 
 /* 将辅存内容写入实存 */
 void do_page_in(Ptr_PageTableItem ptr_pageTabIt, unsigned int blockNum)
@@ -499,12 +561,12 @@ void do_print_info()
 {
 	unsigned int i, j, k;
 	char str[4];
-	printf("页号\t块号\t装入\t修改\t保护\t计数\t辅存\t进程号\n");
+	printf("页号\t块号\t装入\t修改\t保护\t计数\t标志位\t辅存\t进程号\n");
 	for (i = 0; i < PAGE_SUM; i++)
 	{
-		printf("%u\t%u\t%u\t%u\t%s\t%u\t%u\t%u\n", i, pageTable[i].blockNum, pageTable[i].filled,
+		printf("%u\t%u\t%u\t%u\t%s\t%u\t%u\t%u\t%u\n", i, pageTable[i].blockNum, pageTable[i].filled,
 			pageTable[i].edited, get_proType_str(str, pageTable[i].proType),
-			pageTable[i].count, pageTable[i].auxAddr, pageTable[i].proccessNum);
+			pageTable[i].count, pageTable[i].LRU_flag,pageTable[i].auxAddr, pageTable[i].proccessNum);
 	}
 }
 /*************************************************************************/
@@ -576,13 +638,13 @@ void do_print_info_to_file()
 
 	unsigned int i, j, k;
 	char str[4];
-	sprintf(temp_str, "页号\t块号\t装入\t修改\t保护\t计数\t辅存\t进程号\n");
+	sprintf(temp_str, "页号\t块号\t装入\t修改\t保护\t计数\t标志位\t辅存\t进程号\n");
 	strcat(temp_str_out, temp_str);
 	for (i = 0; i < PAGE_SUM; i++)
 	{
-		sprintf(temp_str, "%u\t%u\t%u\t%u\t%s\t%u\t%u\t%u\n", i, pageTable[i].blockNum, pageTable[i].filled,
+		sprintf(temp_str, "%u\t%u\t%u\t%u\t%s\t%u\t%u\t%u\t%u\n", i, pageTable[i].blockNum, pageTable[i].filled,
 			pageTable[i].edited, get_proType_str(str, pageTable[i].proType),
-			pageTable[i].count, pageTable[i].auxAddr, pageTable[i].proccessNum);
+			pageTable[i].count,pageTable[i].LRU_flag, pageTable[i].auxAddr, pageTable[i].proccessNum);
 		strcat(temp_str_out, temp_str);
 	}
 
@@ -746,14 +808,31 @@ void new_do_response() {
 	}
 }
 int do_fork() {
-	int fpid;
+	int fpid,i;
+	time_t Last_Update_time,Now_time;
+
+
+	long counter = 0;
 	fpid = fork();
+	time(&Last_Update_time);
 	while (1) {
 		if (fpid < 0) {
 			printf("子进程创建失败\n");
 			break;
 		}
 		else if (fpid == 0) {
+			time(&Now_time);
+			counter = Now_time-Last_Update_time;
+			if (counter>=LRU_period){//超过刷新时间
+				for ( i = 0; i < PAGE_SUM; ++i)
+				{
+					
+						pageTable[i].LRU_flag = 0 ;
+					
+				}
+				time(&Last_Update_time);
+			} //定时刷新lru算法标志位
+
 			new_do_response();
 		}
 		else {
