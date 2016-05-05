@@ -24,6 +24,7 @@ BOOL blockStatus[BLOCK_SUM];
 Ptr_MemoryAccessRequest ptr_memAccReq;
 
 int pid;
+int fg_gid = 0;
 
 
 /* 初始化环境 */
@@ -540,7 +541,12 @@ void new_do_request() {
 	//进程
 	printf("输入请求: address type proccessnum value\n");
 	scanf("%d%d%d%d", &address, &type, &proccessnum, &value);
+
+	//切换终端控制权
+	tcsetpgrp(0, pid);
+
 	kill(pid, SIGUSR1);
+
 
 	//上面四个打到文件
 
@@ -694,7 +700,6 @@ void do_print_memory_to_file()
 		printf("opening failed");
 
 
-
 	if (write(temp_fifo, temp_str_out, 10000) < 0)
 
 		printf("/tmp/temp_mem write failed");
@@ -801,6 +806,9 @@ void new_do_response() {
 			break;
 		}
 		do_response();
+
+		tcsetpgrp(0, fg_gid);
+
 		kill(getppid(), SIGUSR2);
 		/////////////////////////////////////////////////////////////////////////////
 		do_print_info_to_file();
@@ -813,7 +821,12 @@ int do_fork() {
 
 
 	long counter = 0;
+	
 	fpid = fork();
+	//往新进程组里撸
+	setpgid(fpid, fpid);
+	
+	
 	time(&Last_Update_time);
 	while (1) {
 		if (fpid < 0) {
@@ -850,20 +863,18 @@ int do_fork() {
 
 int main(int argc, char* argv[])
 {
+	fg_gid = tcgetpgrp(0);
+
 	remove("/tmp/temp_mem");
-
 	if (mkfifo("/tmp/temp_mem", 0666) < 0)
-
 		printf("mkfifo failed");
+
 	remove("/tmp/temp_info");
-
 	if (mkfifo("/tmp/temp_info", 0666) < 0)
-
 		printf("mkfifo failed");
+
 	remove("/tmp/temp_var4");
-
 	if (mkfifo("/tmp/temp_var4", 0666) < 0)
-
 		printf("mkfifo failed");
 
 
